@@ -164,7 +164,7 @@ class MainWindow(Frame):
         cur = self.textlist.curselection()
         if cur and cur[0] != self.current:
             self.save_selection()
-            self.current = cur[0]
+            self.current = int(cur[0])
             self.update_selection()
         self.after(250, self.check_update)
 
