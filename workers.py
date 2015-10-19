@@ -3,7 +3,7 @@ from tkinter import filedialog
 
 import sys
 
-__version__ = "0.1"
+__version__ = "0.3"
 
 FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
               0x04: "E", 0x05: "F", 0x06: "G", 0x07: "H",
@@ -15,7 +15,9 @@ FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
               0x1C: ":", 0x1D: ",", 0x1E: ".", 0x1F: "&",
               0x20: "(", 0x21: ")", 0x22: "'", 0x23: "“",
               0x24: "”", 0x25: "-", 0x26: "3", 0x27: "Å",
-              0x2F: " ", 0x30: "\t", 0x7F: "\n"}
+              0x2F: " ", 0x30: "\n"}
+
+reverse_font_table = str.maketrans({v:chr(k) for k,v in FONT_TABLE.items()})
 
 """
 0x28=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
@@ -76,7 +78,7 @@ class MainWindow(Frame):
 
         self.filemenu = Menu(self.menubar, tearoff=NO)
         self.filemenu.add_command(label="Open", command=lambda: self.run_program(self.load_file()))
-        self.filemenu.add_command(label="Reload from disk", command=lambda: self.run_program(self.file))
+        self.filemenu.add_command(label="Reload from disk", command=self.reload_from_disk)
         self.filemenu.add_command(label="Save", command=self.write_file)
         self.filemenu.add_separator()
         self.filemenu.add_command(label="Quit", command=self.master.destroy)
@@ -128,6 +130,15 @@ class MainWindow(Frame):
 
         self.run_program(file)
 
+    def reload_from_disk(self):
+        self.current = None
+        self.lines[:] = []
+        self.textlist.delete(0, END)
+        self.font_type_entry.set("")
+        self.font_color_entry.set("")
+        self.line_contents.delete(1.0, END)
+        self.run_program(self.file)
+
     def run_program(self, file):
         if not file:
             return
@@ -136,10 +147,11 @@ class MainWindow(Frame):
         self.line_contents["state"] = NORMAL
 
         with open(file, "rb") as f:
-            content = bytearray(f.read())
+            content = f.read()
             count = len(content) / 64
             if not count.is_integer():
-                raise ValueError("Wrong number of bytes in the file")
+                self.error_message("File does not have a multiple of 64 bytes")
+                return
 
             for n in range(int(count)):
                 self.textlist.insert(END, "Entry #%s" % n)
@@ -151,6 +163,7 @@ class MainWindow(Frame):
     def check_update(self):
         cur = self.textlist.curselection()
         if cur and cur[0] != self.current:
+            self.save_selection()
             self.current = cur[0]
             self.update_selection()
         self.after(250, self.check_update)
@@ -159,10 +172,41 @@ class MainWindow(Frame):
         self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
         self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
         self.line_contents.delete(1.0, END)
-        self.line_contents.insert(END, self.lines[self.current][3].decode("ascii").translate(FONT_TABLE))
+        line = self.lines[self.current][3].decode("ascii").translate(FONT_TABLE)
+        self.line_contents.insert(END, line[:line.index("\x7f")])
+
+    def save_selection(self):
+        if self.current is not None:
+            line = self.line_contents.get(1.0, END)
+            if len(line) >= 48:
+                self.error_message("Text length must be < 48 characters\nEntry not saved")
+                return
+
+            line = line.upper()
+            s = set(line) - set(FONT_TABLE.values())
+
+            if s:
+                self.error_message("Characters not supported:\n{0}\nEntry not saved".format(", ".join(s)))
+                return
+
+            self.lines[self.current][0] = int(self.font_type_entry.get()).to_bytes(4, "little")
+            self.lines[self.current][1] = int(self.font_color_entry.get()).to_bytes(4, "little")
+
+            line = list(line.translate(reverse_font_table).encode("ascii"))
+            line.append(127)
+            while len(line) < 48:
+                line.append(0)
+
+            self.lines[self.current][3] = bytes(line)
 
     def write_file(self):
-        pass
+        self.save_selection()
+        filetypes = [("PEOPLE.BIN", ".bin"), ("All files", "*")]
+        file = filedialog.SaveAs(filetypes=filetypes).show()
+        if file:
+            with open(file, "wb") as f:
+                for data in self.lines:
+                    f.write(b"".join(data))
 
     def load_file(self):
         filetypes = [("PEOPLE.BIN", ".bin"), ("All files", "*")]
@@ -172,8 +216,27 @@ class MainWindow(Frame):
             return file
         self.master.destroy()
 
+    def error_message(self, msg):
+        window = Frame(Tk())
+        window.pack()
+        window.master.title("Error")
+
+        label = Label(window, text=msg)
+        label.pack(side=TOP)
+
+        ok = Button(window, text="OK", command=window.master.destroy)
+        ok.pack(side=BOTTOM)
+
     def about_menu(self):
-        pass
+        window = Frame(Tk())
+        window.pack()
+        window.master.title("About Workers %s" % __version__)
+
+        label = Label(window, text="Workers {0} created by Vgr\nFormat research by IlDucci".format(__version__))
+        label.pack(side=TOP)
+
+        ok = Button(window, text="OK", command=window.master.destroy)
+        ok.pack(side=BOTTOM)
 
 if __name__ == "__main__":
     MainWindow(len(sys.argv) > 1 and sys.argv[1] or None).mainloop()
