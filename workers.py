@@ -5,6 +5,28 @@ import sys
 
 __version__ = "0.1"
 
+FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
+              0x04: "E", 0x05: "F", 0x06: "G", 0x07: "H",
+              0x08: "I", 0x09: "J", 0x0A: "K", 0x0B: "L",
+              0x0C: "M", 0x0D: "N", 0x0E: "O", 0x0F: "P",
+              0x10: "Q", 0x11: "R", 0x12: "S", 0x13: "T",
+              0x14: "U", 0x15: "V", 0x16: "W", 0x17: "X",
+              0x18: "Y", 0x19: "Z", 0x1A: "1", 0x1B: "2",
+              0x1C: ":", 0x1D: ",", 0x1E: ".", 0x1F: "&",
+              0x20: "(", 0x21: ")", 0x22: "'", 0x23: "“",
+              0x24: "”", 0x25: "-", 0x26: "3", 0x27: "Å",
+              0x2F: " ", 0x30: "\t", 0x7F: "\n"}
+
+"""
+0x28=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x29=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x2A=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x2B=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x2C=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x2D=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+0x2E=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
+"""
+
 class Open(filedialog.Open):
     "Fixed version of commondialog.Dialog based on filedialog.Open"
 
@@ -46,27 +68,22 @@ class MainWindow(Frame):
         self.textlist = Listbox(self, yscrollcommand=self.textscroll.set)
         self.textscroll["command"] = self.textlist.yview
         self.textscroll.pack(side=RIGHT, fill=Y)
-        self.textlist.pack(side=RIGHT, fill=Y, expand=True)
-
-        # Adding this for completion's sake
-
-        self.quit_button = Button(self, text="Quit", command=self.master.destroy)
-        self.quit_button.pack(side=BOTTOM)
+        self.textlist.pack(side=RIGHT, fill=Y, expand=YES)
 
         # Menu bar and dropdown menus
 
         self.menubar = Menu(self)
 
-        self.filemenu = Menu(self.menubar, tearoff=False)
+        self.filemenu = Menu(self.menubar, tearoff=NO)
         self.filemenu.add_command(label="Open", command=lambda: self.run_program(self.load_file()))
-        self.filemenu.add_command(label="Reload from disk", command=lambda: self.run_program(open(self.file, "rb")))
+        self.filemenu.add_command(label="Reload from disk", command=lambda: self.run_program(self.file))
         self.filemenu.add_command(label="Save", command=self.write_file)
         self.filemenu.add_separator()
         self.filemenu.add_command(label="Quit", command=self.master.destroy)
 
         self.menubar.add_cascade(label="File", menu=self.filemenu)
 
-        self.helpmenu = Menu(self.menubar, tearoff=False)
+        self.helpmenu = Menu(self.menubar, tearoff=NO)
         self.helpmenu.add_command(label="About", command=self.about_menu)
 
         self.menubar.add_cascade(label="Help", menu=self.helpmenu)
@@ -75,13 +92,30 @@ class MainWindow(Frame):
 
         # Edit fields where everything can be set
 
+        self.font_type_label = Label(self, text="Font Type")
+        self.font_type_label.pack(side=LEFT, anchor=NW)
+
         self.font_type_entry = StringVar()
         self.font_type = Entry(self, textvariable=self.font_type_entry, state=DISABLED)
-        self.font_type.pack()
+        self.font_type.pack(side=TOP, anchor=N)
+
+        self.font_color_label = Label(self, text="Font Color")
+        self.font_color_label.pack(side=LEFT, anchor=NW)
+
+        self.font_color_entry = StringVar()
+        self.font_color = Entry(self, textvariable=self.font_color_entry, state=DISABLED)
+        self.font_color.pack(side=TOP, anchor=N)
+
+        self.line_contents_label = Label(self, text="Line Contents")
+        self.line_contents_label.pack(side=LEFT, anchor=NW)
+
+        self.line_contents = Text(self, state=DISABLED)
+        self.line_contents.pack(side=TOP, anchor=N)
 
         # Setup the internals
 
         self.lines = []
+        self.current = None
 
         # Initialization complete, now let's load the file
 
@@ -98,7 +132,34 @@ class MainWindow(Frame):
         if not file:
             return
         self.font_type["state"] = NORMAL
-        
+        self.font_color["state"] = NORMAL
+        self.line_contents["state"] = NORMAL
+
+        with open(file, "rb") as f:
+            content = bytearray(f.read())
+            count = len(content) / 64
+            if not count.is_integer():
+                raise ValueError("Wrong number of bytes in the file")
+
+            for n in range(int(count)):
+                self.textlist.insert(END, "Entry #%s" % n)
+                self.lines.append([content[:0x04], content[0x04:0x08], content[0x08:0x0C], content[0x0C:0x3C], content[0x3C:0x40]])
+                content = content[0x40:]
+
+        self.check_update()
+
+    def check_update(self):
+        cur = self.textlist.curselection()
+        if cur and cur[0] != self.current:
+            self.current = cur[0]
+            self.update_selection()
+        self.after(250, self.check_update)
+
+    def update_selection(self):
+        self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
+        self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
+        self.line_contents.delete(1.0, END)
+        self.line_contents.insert(END, self.lines[self.current][3].decode("ascii").translate(FONT_TABLE))
 
     def write_file(self):
         pass
@@ -108,7 +169,7 @@ class MainWindow(Frame):
         file = Open(filetypes=filetypes).show()
         if file:
             self.file = file
-            return open(file, "rb")
+            return file
         self.master.destroy()
 
     def about_menu(self):
