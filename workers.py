@@ -2,6 +2,14 @@ from tkinter import *
 from tkinter import filedialog
 
 import sys
+import os
+
+try:
+    import config
+except ImportError:
+    with open("config.py", "w"):
+        pass # create empty file
+    import config
 
 __version__ = "0.3"
 
@@ -19,15 +27,13 @@ FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
 
 reverse_font_table = str.maketrans({v:chr(k) for k,v in FONT_TABLE.items()})
 
-"""
-0x28=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x29=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x2A=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x2B=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x2C=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x2D=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-0x2E=(SPECIAL ACCENTED CHARACTER, CHANGES WITH EACH LANGUAGE)
-"""
+SPANISH_FONT = {0x28: "Á", 0x29: "Í", 0x2A: "Ó", 0x2B: "Ñ", 0x2C: "É", 0x2D: "È", 0x2E: "Ú"}
+
+reverse_sp_font = str.maketrans({v:chr(k) for k,v in SPANISH_FONT.items()})
+
+EFG_FONT = {0x28: "Á", 0x29: "Ä", 0x2A: "Ó", 0x2B: "Ö", 0x2C: "É", 0x2D: "È", 0x2E: "Ü"}
+
+reverse_efg_font = str.maketrans({v:chr(k) for k,v in EFG_FONT.items()})
 
 class Open(filedialog.Open):
     "Fixed version of commondialog.Dialog based on filedialog.Open"
@@ -85,6 +91,14 @@ class MainWindow(Frame):
 
         self.menubar.add_cascade(label="File", menu=self.filemenu)
 
+        self.langmenu = Menu(self.menubar, tearoff=NO)
+        self.langmenu.add_command(label="English", command=lambda: self.set_lang("English"))
+        self.langmenu.add_command(label="French", command=lambda: self.set_lang("French"))
+        self.langmenu.add_command(label="Spanish", command=lambda: self.set_lang("Spanish"))
+        self.langmenu.add_command(label="German", command=lambda: self.set_lang("German"))
+
+        self.menubar.add_cascade(label="Special Characters", menu=self.langmenu)
+
         self.helpmenu = Menu(self.menubar, tearoff=NO)
         self.helpmenu.add_command(label="About", command=self.about_menu)
 
@@ -111,6 +125,9 @@ class MainWindow(Frame):
         self.line_contents_label = Label(self, text="Line Contents")
         self.line_contents_label.pack(side=LEFT, anchor=NW)
 
+        self.line_contents_top_label = Label(self, text="Linebreaks are tabulations")
+        self.line_contents_top_label.pack(side=TOP, anchor=N)
+
         self.line_contents = Text(self, state=DISABLED)
         self.line_contents.pack(side=TOP, anchor=N)
 
@@ -118,6 +135,7 @@ class MainWindow(Frame):
 
         self.lines = []
         self.current = None
+        self.language = getattr(config, "LANGUAGE", "English")
 
         # Initialization complete, now let's load the file
 
@@ -168,6 +186,9 @@ class MainWindow(Frame):
             self.update_selection()
         self.after(250, self.check_update)
 
+    def set_lang(self, value="English"):
+        self.language = value
+
     def update_selection(self):
         self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
         self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
@@ -184,6 +205,10 @@ class MainWindow(Frame):
 
             line = line.upper()
             s = set(line) - set(FONT_TABLE.values())
+            if self.language == "Spanish":
+                s -= set(SPANISH_FONT.values())
+            elif self.language in ("English", "French", "German"):
+                s -= set(EFG_FONT.values())
 
             if s:
                 self.error_message("Characters not supported:\n{0}\nEntry not saved".format(", ".join(s)))
@@ -192,7 +217,12 @@ class MainWindow(Frame):
             self.lines[self.current][0] = int(self.font_type_entry.get()).to_bytes(4, "little")
             self.lines[self.current][1] = int(self.font_color_entry.get()).to_bytes(4, "little")
 
-            line = list(line.translate(reverse_font_table).encode("ascii"))
+            line = line.translate(reverse_font_table)
+            if self.language == "Spanish":
+                line = line.translate(reverse_sp_font)
+            elif self.language in ("English", "French", "German"):
+                line = line.translate(reverse_efg_font)
+            line = list(line.encode("ascii"))
             line.append(127)
             while len(line) < 48:
                 line.append(0)
