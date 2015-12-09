@@ -25,13 +25,15 @@ FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
               0x24: "”", 0x25: "-", 0x26: "3", 0x27: "Å",
               0x2F: " ", 0x30: "\n"}
 
-reverse_font_table = str.maketrans({v:chr(k) for k,v in FONT_TABLE.items()})
-
 SPANISH_FONT = {0x28: "Á", 0x29: "Í", 0x2A: "Ó", 0x2B: "Ñ", 0x2C: "É", 0x2D: "È", 0x2E: "Ú"}
+
+SPANISH_FONT.update(FONT_TABLE)
 
 reverse_sp_font = str.maketrans({v:chr(k) for k,v in SPANISH_FONT.items()})
 
 EFG_FONT = {0x28: "Á", 0x29: "Ä", 0x2A: "Ó", 0x2B: "Ö", 0x2C: "É", 0x2D: "È", 0x2E: "Ü"}
+
+EFG_FONT.update(FONT_TABLE)
 
 reverse_efg_font = str.maketrans({v:chr(k) for k,v in EFG_FONT.items()})
 
@@ -172,7 +174,7 @@ class MainWindow(Frame):
                 return
 
             for n in range(int(count)):
-                text = content[0x0C:0x3C].decode("ascii").translate(FONT_TABLE)
+                text = content[0x0C:0x3C].decode("ascii")
                 if self.language == "Spanish":
                     text = text.translate(SPANISH_FONT)
                 elif self.language in ("English", "French", "German"):
@@ -196,7 +198,7 @@ class MainWindow(Frame):
             self.language = value
             self.textlist.delete(0, END)
             for i, line in enumerate(self.lines):
-                line = line[3].decode("ascii").translate(FONT_TABLE)
+                line = line[3].decode("ascii")
                 if value == "Spanish":
                     line = line.translate(SPANISH_FONT)
                 elif value in ("English", "French", "German"):
@@ -207,7 +209,7 @@ class MainWindow(Frame):
         self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
         self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
         self.line_contents.delete(1.0, END)
-        line = self.lines[self.current][3].decode("ascii").translate(FONT_TABLE)
+        line = self.lines[self.current][3].decode("ascii")
         if self.language == "Spanish":
             line = line.translate(SPANISH_FONT)
         elif self.language in ("English", "French", "German"):
@@ -224,7 +226,7 @@ class MainWindow(Frame):
                 return
 
             line = line.upper()
-            s = set(line) - set(FONT_TABLE.values())
+            s = set(line)
             if self.language == "Spanish":
                 s -= set(SPANISH_FONT.values())
             elif self.language in ("English", "French", "German"):
@@ -237,7 +239,6 @@ class MainWindow(Frame):
             self.lines[self.current][0] = int(self.font_type_entry.get()).to_bytes(4, "little")
             self.lines[self.current][1] = int(self.font_color_entry.get()).to_bytes(4, "little")
 
-            line = line.translate(reverse_font_table)
             if self.language == "Spanish":
                 line = line.translate(reverse_sp_font)
             elif self.language in ("English", "French", "German"):
