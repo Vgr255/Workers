@@ -220,7 +220,7 @@ class MainWindow(Frame):
     def save_selection(self):
         if self.current is not None:
             line = self.line_contents.get(1.0, END)
-            line = line.replace("¶", "")
+            line = line.replace("¶", "")[:-1]
             if len(line) >= 48:
                 self.error_message("Text length must be < 48 characters\nEntry not saved")
                 return
