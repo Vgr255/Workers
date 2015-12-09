@@ -195,10 +195,12 @@ class MainWindow(Frame):
         self.line_contents.delete(1.0, END)
         line = self.lines[self.current][3].decode("ascii").translate(FONT_TABLE)
         self.line_contents.insert(END, line[:line.index("\x7f")])
+        self.line_contents.insert(END, "¶")
 
     def save_selection(self):
         if self.current is not None:
             line = self.line_contents.get(1.0, END)
+            line = line.replace("¶", "")
             if len(line) >= 48:
                 self.error_message("Text length must be < 48 characters\nEntry not saved")
                 return
