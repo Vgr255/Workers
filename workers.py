@@ -172,7 +172,12 @@ class MainWindow(Frame):
                 return
 
             for n in range(int(count)):
-                self.textlist.insert(END, "Entry #%s" % n)
+                text = content[0x0C:0x3C].decode("ascii").translate(FONT_TABLE)
+                if self.language == "Spanish":
+                    text = text.translate(SPANISH_FONT)
+                elif self.language in ("English", "French", "German"):
+                    text = text.translate(EFG_FONT)
+                self.textlist.insert(END, "#{0}: {1}".format(n, text))
                 self.lines.append([content[:0x04], content[0x04:0x08], content[0x08:0x0C], content[0x0C:0x3C], content[0x3C:0x40]])
                 content = content[0x40:]
 
@@ -187,13 +192,26 @@ class MainWindow(Frame):
         self.after(250, self.check_update)
 
     def set_lang(self, value="English"):
-        self.language = value
+        if self.language != value:
+            self.language = value
+            self.textlist.delete(0, END)
+            for i, line in enumerate(self.lines):
+                line = line[3].decode("ascii").translate(FONT_TABLE)
+                if value == "Spanish":
+                    line = line.translate(SPANISH_FONT)
+                elif value in ("English", "French", "German"):
+                    line = line.translate(EFG_FONT)
+                self.textlist.insert(END, "#{0}: {1}".format(i, line))
 
     def update_selection(self):
         self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
         self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
         self.line_contents.delete(1.0, END)
         line = self.lines[self.current][3].decode("ascii").translate(FONT_TABLE)
+        if self.language == "Spanish":
+            line = line.translate(SPANISH_FONT)
+        elif self.language in ("English", "French", "German"):
+            line = line.translate(EFG_FONT)
         self.line_contents.insert(END, line[:line.index("\x7f")])
         self.line_contents.insert(END, "¶")
 
