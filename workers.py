@@ -11,7 +11,7 @@ except ImportError:
         pass # create empty file
     import config
 
-__version__ = "0.3"
+__version__ = "0.4"
 
 FONT_TABLE = {0x00: "A", 0x01: "B", 0x02: "C", 0x03: "D",
               0x04: "E", 0x05: "F", 0x06: "G", 0x07: "H",
