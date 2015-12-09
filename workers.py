@@ -179,6 +179,7 @@ class MainWindow(Frame):
                     text = text.translate(SPANISH_FONT)
                 elif self.language in ("English", "French", "German"):
                     text = text.translate(EFG_FONT)
+                text = text[:text.index("\x7f")].replace("\n", " ")
                 self.textlist.insert(END, "#{0}: {1}".format(n, text))
                 self.lines.append([content[:0x04], content[0x04:0x08], content[0x08:0x0C], content[0x0C:0x3C], content[0x3C:0x40]])
                 content = content[0x40:]
@@ -203,6 +204,7 @@ class MainWindow(Frame):
                     line = line.translate(SPANISH_FONT)
                 elif value in ("English", "French", "German"):
                     line = line.translate(EFG_FONT)
+                line = line[:line.index("\x7f")].replace("\n", " ")
                 self.textlist.insert(END, "#{0}: {1}".format(i, line))
 
     def update_selection(self):
