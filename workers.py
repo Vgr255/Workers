@@ -218,6 +218,15 @@ class MainWindow(Frame):
             line = line.translate(EFG_FONT)
         self.line_contents.insert(END, line[:line.index("\x7f")])
         self.line_contents.insert(END, "¶")
+        self.textlist.delete(0, END)
+        for i, line in enumerate(self.lines): # update sidebar
+            text = line[3].decode("ascii")
+            if self.language == "Spanish":
+                text = text.translate(SPANISH_FONT)
+            elif self.language in ("English", "French", "German"):
+                text = text.translate(EFG_FONT)
+            text = text[:text.index("\x7f")].replace("\n", " ")
+            self.textlist.insert(END, "#{0}: {1}".format(i, text))
 
     def save_selection(self):
         if self.current is not None:
