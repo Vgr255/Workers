@@ -133,6 +133,9 @@ class MainWindow(Frame):
         self.line_contents = Text(self, state=DISABLED)
         self.line_contents.pack(side=TOP, anchor=N)
 
+        self.add_line_button = Button(self, text="Add new line", command=self.add_line)
+        self.add_line_button.pack(side=LEFT, anchor=W)
+
         # Setup the internals
 
         self.lines = []
@@ -170,7 +173,7 @@ class MainWindow(Frame):
             content = f.read()
             count = len(content) / 64
             if not count.is_integer():
-                self.error_message("File does not have a multiple of 64 bytes")
+                self.display_message("File does not have a multiple of 64 bytes", title="Error")
                 return
 
             for n in range(int(count)):
@@ -207,6 +210,14 @@ class MainWindow(Frame):
                 line = line[:line.index("\x7f")].replace("\n", " ")
                 self.textlist.insert(END, "#{0}: {1}".format(i, line))
 
+    def add_line(self):
+        total_len = len(self.lines)
+        self.lines.append([bytes(0x04), bytes(0x04), bytes(0x04), b"\x7f" + bytes(0x2F), b"(\x00\x00\x00"])
+        self.save_selection()
+        self.current = total_len
+        self.display_message("Added new entry #{0}".format(total_len), title="Operation successful")
+        self.update_selection()
+
     def update_selection(self):
         self.font_type_entry.set(int.from_bytes(self.lines[self.current][0], "little"))
         self.font_color_entry.set(int.from_bytes(self.lines[self.current][1], "little"))
@@ -233,7 +244,7 @@ class MainWindow(Frame):
             line = self.line_contents.get(1.0, END)
             line = line.replace("¶", "")[:-1]
             if len(line) >= 48:
-                self.error_message("Text length must be < 48 characters\nEntry not saved")
+                self.display_message("Text length must be < 48 characters\nEntry not saved", title="Error")
                 return
 
             line = line.upper()
@@ -244,7 +255,7 @@ class MainWindow(Frame):
                 s -= set(EFG_FONT.values())
 
             if s:
-                self.error_message("Characters not supported:\n{0}\nEntry not saved".format(", ".join(s)))
+                self.display_message("Characters not supported:\n{0}\nEntry not saved".format(", ".join(s)), title="Error")
                 return
 
             self.lines[self.current][0] = int(self.font_type_entry.get()).to_bytes(4, "little")
@@ -278,10 +289,10 @@ class MainWindow(Frame):
             return file
         self.master.destroy()
 
-    def error_message(self, msg):
+    def display_message(self, msg, title):
         window = Frame(Tk())
         window.pack()
-        window.master.title("Error")
+        window.master.title(title)
 
         label = Label(window, text=msg)
         label.pack(side=TOP)
@@ -290,15 +301,10 @@ class MainWindow(Frame):
         ok.pack(side=BOTTOM)
 
     def about_menu(self):
-        window = Frame(Tk())
-        window.pack()
-        window.master.title("About Workers %s" % __version__)
+        self.display_message("Workers {0} created by Vgr\nFormat research by IlDucci".format(__version__), title="About Workers %s" % __version__)
 
-        label = Label(window, text="Workers {0} created by Vgr\nFormat research by IlDucci".format(__version__))
-        label.pack(side=TOP)
-
-        ok = Button(window, text="OK", command=window.master.destroy)
-        ok.pack(side=BOTTOM)
+def main():
+    MainWindow(len(sys.argv) > 1 and sys.argv[1] or None).mainloop()
 
 if __name__ == "__main__":
-    MainWindow(len(sys.argv) > 1 and sys.argv[1] or None).mainloop()
+    main()
