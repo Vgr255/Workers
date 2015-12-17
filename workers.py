@@ -136,6 +136,9 @@ class MainWindow(Frame):
         self.add_line_button = Button(self, text="Add new line", command=self.add_line)
         self.add_line_button.pack(side=LEFT, anchor=W)
 
+        self.remove_line_button = Button(self, text="Remove current line", command=self.remove_line)
+        self.remove_line_button.pack(side=LEFT, anchor=W)
+
         # Setup the internals
 
         self.lines = []
@@ -216,6 +219,15 @@ class MainWindow(Frame):
         self.save_selection()
         self.current = total_len
         self.display_message("Added new entry #{0}".format(total_len), title="Operation successful")
+        self.update_selection()
+
+    def remove_line(self):
+        x = self.current
+        self.lines[self.current:self.current+1] = []
+        if self.current == len(self.lines):
+            self.current = -1
+        self.current += 1
+        self.display_message("Removed entry #{0}".format(x), title="Operation successful")
         self.update_selection()
 
     def update_selection(self):
