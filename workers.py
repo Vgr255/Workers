@@ -298,6 +298,7 @@ class MainWindow(Frame):
         file = Open(filetypes=filetypes).show()
         if file:
             self.file = file
+            self.lines[:] = []
             return file
         self.master.destroy()
 
